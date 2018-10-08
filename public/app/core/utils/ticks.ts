@@ -1,3 +1,6 @@
+// Context provides access to user preferences for data formatting
+import { contextSrv } from 'app/core/services/context_srv';
+
 /**
  * Calculate tick step.
  * Implementation from d3-array (ticks.js)
@@ -171,10 +174,10 @@ export function grafanaTimeFormat(ticks, min, max) {
       return '%H:%M';
     }
     if (secPerTick <= 80000) {
-      return '%m/%d %H:%M';
+      return getMonthDayFormat() + ' %H:%M';
     }
     if (secPerTick <= 2419200 || range <= oneYear) {
-      return '%m/%d';
+      return getMonthDayFormat();
     }
     return '%Y-%m';
   }
@@ -207,4 +210,35 @@ export function getStringPrecision(num: string): number {
   } else {
     return num.length - dotIndex - 1;
   }
+}
+
+/**
+ * True if browser supports string locales for date parsing.
+ */
+function canUseLocaleDateStringLocales() {
+  try {
+    new Date().toLocaleDateString('i');
+  } catch (e) {
+    return e.name === 'RangeError';
+  }
+  return false;
+}
+
+/**
+ * Return time formatting string used for axis that display ticks with day granularity.
+ */
+function getMonthDayFormat() {
+  if (contextSrv.user.monthDayFormat && contextSrv.user.monthDayFormat !== 'browser') {
+    return contextSrv.user.monthDayFormat;
+  }
+
+  if (!canUseLocaleDateStringLocales()) {
+    return '%m/%d';
+  }
+
+  const language = navigator.languages ? navigator.languages[0] : navigator.language || 'en-US';
+  return new Date(Date.UTC(1977, 11, 20, 0, 0, 0))
+    .toLocaleDateString(language, { month: 'numeric', day: 'numeric' })
+    .replace('12', '%m')
+    .replace('20', '%d');
 }
