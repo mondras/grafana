@@ -1,4 +1,4 @@
-﻿import React, { PureComponent } from 'react';
+import React, { PureComponent } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { connect } from 'react-redux';
 import { hot } from 'react-hot-loader';
@@ -7,7 +7,8 @@ import { getNavModel } from 'app/core/selectors/navModel';
 import { getApiKeys, getApiKeysCount } from './state/selectors';
 import { loadApiKeys, deleteApiKey, setSearchQuery, addApiKey } from './state/actions';
 import PageHeader from 'app/core/components/PageHeader/PageHeader';
-import SlideDown from 'app/core/components/Animations/SlideDown';
+import PageLoader from 'app/core/components/PageLoader/PageLoader';
+import SlideDown, { defaultStyle as slideDownDefaultStyle } from 'app/core/components/Animations/SlideDown';
 import ApiKeysAddedModal from './ApiKeysAddedModal';
 import config from 'app/core/config';
 import appEvents from 'app/core/app_events';
@@ -18,6 +19,7 @@ export interface Props {
   navModel: NavModel;
   apiKeys: ApiKey[];
   searchQuery: string;
+  hasFetched: boolean;
   loadApiKeys: typeof loadApiKeys;
   deleteApiKey: typeof deleteApiKey;
   setSearchQuery: typeof setSearchQuery;
@@ -103,21 +105,24 @@ export class ApiKeysPage extends PureComponent<Props, any> {
   };
 
   renderEmptyList() {
+    const { isAdding } = this.state;
     return (
       <div className="page-container page-body">
-        <EmptyListCTA
-          model={{
-            title: "You haven't added any API Keys yet.",
-            buttonIcon: 'fa fa-plus',
-            buttonLink: '#',
-            onClick: this.onToggleAdding,
-            buttonTitle: ' New API Key',
-            proTip: 'Remember you can provide view-only API access to other applications.',
-            proTipLink: '',
-            proTipLinkTitle: '',
-            proTipTarget: '_blank',
-          }}
-        />
+        {!isAdding && (
+          <EmptyListCTA
+            model={{
+              title: "You haven't added any API Keys yet.",
+              buttonIcon: 'fa fa-plus',
+              buttonLink: '#',
+              onClick: this.onToggleAdding,
+              buttonTitle: ' New API Key',
+              proTip: 'Remember you can provide view-only API access to other applications.',
+              proTipLink: '',
+              proTipLinkTitle: '',
+              proTipTarget: '_blank',
+            }}
+          />
+        )}
         {this.renderAddApiKeyForm()}
       </div>
     );
@@ -125,9 +130,10 @@ export class ApiKeysPage extends PureComponent<Props, any> {
 
   renderAddApiKeyForm() {
     const { newApiKey, isAdding } = this.state;
+    const slideDownStyle = isAdding ? slideDownDefaultStyle : { ...slideDownDefaultStyle, transition: 'unset' };
 
     return (
-      <SlideDown in={isAdding}>
+      <SlideDown in={isAdding} style={slideDownStyle}>
         <div className="cta-form">
           <button className="cta-form__close btn btn-transparent" onClick={this.onToggleAdding}>
             <i className="fa fa-close" />
@@ -231,12 +237,20 @@ export class ApiKeysPage extends PureComponent<Props, any> {
   }
 
   render() {
-    const { navModel, apiKeysCount } = this.props;
+    const { hasFetched, navModel, apiKeysCount } = this.props;
 
     return (
       <div>
         <PageHeader model={navModel} />
-        {apiKeysCount > 0 ? this.renderApiKeyList() : this.renderEmptyList()}
+        {hasFetched ? (
+          apiKeysCount > 0 ? (
+            this.renderApiKeyList()
+          ) : (
+            this.renderEmptyList()
+          )
+        ) : (
+          <PageLoader pageName="Api keys" />
+        )}
       </div>
     );
   }
@@ -248,6 +262,7 @@ function mapStateToProps(state) {
     apiKeys: getApiKeys(state.apiKeys),
     searchQuery: state.apiKeys.searchQuery,
     apiKeysCount: getApiKeysCount(state.apiKeys),
+    hasFetched: state.apiKeys.hasFetched,
   };
 }
 
